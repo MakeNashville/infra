@@ -1,0 +1,39 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Write .env.production
+        run: |
+          cat > .env.production <<EOF
+          PROJECT_ID=${{ secrets.PROJECT_ID }}
+          REGION=${{ vars.REGION || 'us-central1' }}
+          ZONE=${{ vars.ZONE || 'us-central1-a' }}
+          INSTANCE_NAME=${{ vars.INSTANCE_NAME || 'make-nashville-wiki' }}
+          MACHINE_TYPE=${{ vars.MACHINE_TYPE || 'e2-medium' }}
+          DOMAIN=${{ secrets.DOMAIN }}
+          GCS_BUCKET=${{ secrets.GCS_BUCKET }}
+          GCS_ACCESS_KEY=${{ secrets.GCS_ACCESS_KEY }}
+          GCS_SECRET_KEY=${{ secrets.GCS_SECRET_KEY }}
+          SLACK_CLIENT_ID=${{ secrets.SLACK_CLIENT_ID }}
+          SLACK_CLIENT_SECRET=${{ secrets.SLACK_CLIENT_SECRET }}
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          UTILS_SECRET=${{ secrets.UTILS_SECRET }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          EOF
+
+      - name: Deploy
+        run: ./deploy/gcloud-setup.sh
