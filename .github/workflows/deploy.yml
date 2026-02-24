@@ -43,14 +43,16 @@ jobs:
         if: always()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          DOMAIN: ${{ secrets.DOMAIN }}
           STATUS: ${{ job.status }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           [ -z "$SLACK_WEBHOOK_URL" ] && exit 0
           if [ "$STATUS" = "success" ]; then
-            TEXT=":white_check_mark: *Make Nashville Wiki* deployed successfully"
+            TEXT=":white_check_mark: *Make Nashville Wiki* deployed successfully — <https://${DOMAIN}|visit wiki> | <${RUN_URL}|view run>"
           else
-            TEXT=":x: *Make Nashville Wiki* deploy failed"
+            TEXT=":x: *Make Nashville Wiki* deploy failed — <${RUN_URL}|view run>"
           fi
           curl -s -X POST "$SLACK_WEBHOOK_URL" \
-            -H 'Content-type: application/json' \
-            --data "{\"text\":\"${TEXT}: <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|view run>\"}"
+            -H "Content-type: application/json" \
+            --data "{\"username\":\"GitHub Actions\",\"icon_emoji\":\":rocket:\",\"text\":\"${TEXT}\"}"
