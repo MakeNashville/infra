@@ -243,7 +243,7 @@ WEBHOOK_URL="${SLACK_WEBHOOK_URL}"
 notify_failure() {
   [ -z "\${WEBHOOK_URL}" ] && return
   curl -s -X POST "\${WEBHOOK_URL}" \
-    -H 'Content-type: application/json' \
+    -H "Content-type: application/json" \
     --data "{\"text\":\":warning: Outline backup failed at \$(date). Check logs on make-nashville-wiki.\"}"
 }
 trap notify_failure ERR
