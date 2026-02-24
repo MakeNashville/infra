@@ -73,7 +73,8 @@ gcs-access-key="$GCS_ACCESS_KEY",\
 gcs-secret-key="$GCS_SECRET_KEY",\
 gcs-bucket="$GCS_BUCKET",\
 slack-client-id="${SLACK_CLIENT_ID:-}",\
-slack-client-secret="${SLACK_CLIENT_SECRET:-}"
+slack-client-secret="${SLACK_CLIENT_SECRET:-}",\
+slack-webhook-url="${SLACK_WEBHOOK_URL:-}"
 
     # Update GCS bucket CORS for direct browser uploads
     echo "Updating GCS bucket CORS..."
@@ -111,6 +112,7 @@ CORS
         GCS_BUCKET=$(get_metadata "gcs-bucket")
         SLACK_CLIENT_ID=$(get_metadata "slack-client-id")
         SLACK_CLIENT_SECRET=$(get_metadata "slack-client-secret")
+        SLACK_WEBHOOK_URL=$(get_metadata "slack-webhook-url")
 
         echo "Updating configuration for domain: $DOMAIN"
 
@@ -227,6 +229,47 @@ volumes:
   caddy_config:
 COMPOSE
 
+        # Write backup script
+        sudo tee /opt/outline/backup.sh > /dev/null <<BACKUPSCRIPT
+#!/bin/bash
+set -euo pipefail
+
+BUCKET="gs://make-nashville-wiki-uploads/backups"
+TIMESTAMP=\$(date +%Y%m%d-%H%M%S)
+BACKUP_FILE="/tmp/outline-\${TIMESTAMP}.sql.gz"
+RETAIN_DAYS=14
+WEBHOOK_URL="${SLACK_WEBHOOK_URL}"
+
+notify_failure() {
+  [ -z "\${WEBHOOK_URL}" ] && return
+  curl -s -X POST "\${WEBHOOK_URL}" \
+    -H 'Content-type: application/json' \
+    --data "{\"text\":\":warning: Outline backup failed at \$(date). Check logs on make-nashville-wiki.\"}"
+}
+trap notify_failure ERR
+
+docker compose -f /opt/outline/docker-compose.yml exec -T postgres pg_dump -U outline outline | gzip > "\${BACKUP_FILE}"
+gcloud storage cp "\${BACKUP_FILE}" "\${BUCKET}/outline-\${TIMESTAMP}.sql.gz"
+rm -f "\${BACKUP_FILE}"
+
+cutoff=\$(date -d "-\${RETAIN_DAYS} days" +%s)
+gcloud storage ls -l "\${BUCKET}/" 2>/dev/null | while read -r line; do
+  file=\$(echo "\$line" | awk "{print \\\$NF}")
+  case "\$file" in gs://*) ;; *) continue ;; esac
+  created=\$(echo "\$line" | awk "{print \\\$2}")
+  file_epoch=\$(date -d "\$created" +%s 2>/dev/null || echo 0)
+  if [[ "\$file_epoch" -gt 0 && "\$file_epoch" -lt "\$cutoff" ]]; then
+    gcloud storage rm "\$file"
+  fi
+done
+
+echo "[\$(date)] Backup complete: outline-\${TIMESTAMP}.sql.gz"
+BACKUPSCRIPT
+        sudo chmod +x /opt/outline/backup.sh
+
+        # Ensure backup cron job is set up (idempotent)
+        (sudo crontab -l 2>/dev/null | grep -v "backup.sh" || true; echo "0 3 * * * /opt/outline/backup.sh >> /var/log/outline-backup.log 2>&1") | sudo crontab -
+
         # Restart services to pick up new config
         echo "Restarting services..."
         sudo docker compose down
@@ -340,7 +383,8 @@ gcs-access-key="$GCS_ACCESS_KEY",\
 gcs-secret-key="$GCS_SECRET_KEY",\
 gcs-bucket="$GCS_BUCKET",\
 slack-client-id="${SLACK_CLIENT_ID:-}",\
-slack-client-secret="${SLACK_CLIENT_SECRET:-}"
+slack-client-secret="${SLACK_CLIENT_SECRET:-}",\
+slack-webhook-url="${SLACK_WEBHOOK_URL:-}"
 
 echo ""
 echo "============================================"

@@ -109,6 +109,7 @@ This only needs to be done once when setting up a new environment.
    | `SECRET_KEY` | Outline secret key (32-byte hex) |
    | `UTILS_SECRET` | Outline utils secret (32-byte hex) |
    | `POSTGRES_PASSWORD` | Database password |
+   | `SLACK_WEBHOOK_URL` | Slack incoming webhook URL (optional — enables deploy and backup notifications) |
 
    Optionally add these as Actions Variables (non-secret) to override defaults:
 

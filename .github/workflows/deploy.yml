@@ -33,7 +33,24 @@ jobs:
           SECRET_KEY=${{ secrets.SECRET_KEY }}
           UTILS_SECRET=${{ secrets.UTILS_SECRET }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }}
           EOF
 
       - name: Deploy
         run: ./deploy/gcloud-setup.sh
+
+      - name: Notify Slack
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          STATUS: ${{ job.status }}
+        run: |
+          [ -z "$SLACK_WEBHOOK_URL" ] && exit 0
+          if [ "$STATUS" = "success" ]; then
+            TEXT=":white_check_mark: *Make Nashville Wiki* deployed successfully"
+          else
+            TEXT=":x: *Make Nashville Wiki* deploy failed"
+          fi
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-type: application/json' \
+            --data "{\"text\":\"${TEXT}: <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|view run>\"}"
