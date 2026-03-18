@@ -71,3 +71,43 @@ echo "============================================"
 echo "Project: $PROJECT_ID"
 echo "Checks: ${CHECK_NAMES[*]}"
 echo ""
+
+# ============================================
+# Create Slack notification channel (if not exists)
+# ============================================
+echo "Checking for existing Slack notification channel..."
+
+CHANNELS_RESPONSE=$(curl -s \
+    -H "$AUTH_HEADER" \
+    "$MONITORING_API/notificationChannels" \
+    || { echo "ERROR: Failed to list notification channels"; exit 1; })
+
+EXISTING_CHANNEL=$(echo "$CHANNELS_RESPONSE" \
+    | jq -r '.notificationChannels[]? | select(.type == "webhook_tokenauth" and .labels.url == "'"$SLACK_WEBHOOK_URL"'") | .name' \
+    | head -n1)
+
+if [[ -n "$EXISTING_CHANNEL" ]]; then
+    echo "Slack notification channel already exists: $EXISTING_CHANNEL"
+    CHANNEL_NAME="$EXISTING_CHANNEL"
+else
+    echo "Creating Slack notification channel..."
+    CHANNEL_RESPONSE=$(curl -s \
+        -X POST \
+        -H "$AUTH_HEADER" \
+        -H "Content-Type: application/json" \
+        "$MONITORING_API/notificationChannels" \
+        -d '{
+            "type": "webhook_tokenauth",
+            "displayName": "Make Nashville Slack",
+            "labels": {
+                "url": "'"$SLACK_WEBHOOK_URL"'"
+            }
+        }' || { echo "ERROR: Failed to create notification channel"; exit 1; })
+    CHANNEL_NAME=$(echo "$CHANNEL_RESPONSE" | jq -r '.name')
+    if [[ -z "$CHANNEL_NAME" || "$CHANNEL_NAME" == "null" ]]; then
+        echo "ERROR: Failed to create notification channel"
+        echo "$CHANNEL_RESPONSE" | jq .
+        exit 1
+    fi
+    echo "Created notification channel: $CHANNEL_NAME"
+fi
