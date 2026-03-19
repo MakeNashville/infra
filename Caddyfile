@@ -7,3 +7,32 @@
 	}
 	reverse_proxy outline:3000
 }
+
+to.makenashville.org {
+	header {
+		X-Frame-Options SAMEORIGIN
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	handle /oauth2/* {
+		reverse_proxy oauth2-proxy:4180
+	}
+
+	@protected {
+		path / /api /api/*
+	}
+	handle @protected {
+		forward_auth oauth2-proxy:4180 {
+			uri /oauth2/auth
+			header_up X-Forwarded-Host {host}
+			copy_headers X-Auth-Request-User X-Auth-Request-Email
+		}
+		reverse_proxy kutt:3001
+	}
+
+	handle {
+		reverse_proxy kutt:3001
+	}
+}
