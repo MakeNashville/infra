@@ -519,6 +519,11 @@ TRUST_PROXY=true
 KUTTENV
 chmod 600 kutt.env
 
+# Create empty placeholder for google-sa-key.json if it doesn't exist
+# (actual key is deployed via gcloud-setup.sh after first boot)
+touch -a google-sa-key.json
+chmod 600 google-sa-key.json
+
 # Pull images
 log "Pulling Docker images..."
 docker compose pull

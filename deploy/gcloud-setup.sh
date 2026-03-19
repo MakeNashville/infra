@@ -391,7 +391,7 @@ notify_failure() {
   [ -z "\${WEBHOOK_URL}" ] && return
   curl -s -X POST "\${WEBHOOK_URL}" \
     -H "Content-type: application/json" \
-    --data "{\"text\":\":warning: Outline backup failed at \$(date). Check logs on make-nashville-wiki.\"}"
+    --data "{\"text\":\":warning: Backup failed at \$(date). Check logs on make-nashville-wiki.\"}"
 }
 trap notify_failure ERR
 
@@ -416,7 +416,7 @@ gcloud storage ls -l "\${BUCKET}/" 2>/dev/null | while read -r line; do
   fi
 done
 
-echo "[\$(date)] Backup complete: outline-\${TIMESTAMP}.sql.gz"
+echo "[\$(date)] Backup complete: outline and kutt \${TIMESTAMP}"
 BACKUPSCRIPT
         sudo chmod +x /opt/outline/backup.sh
 
