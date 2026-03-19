@@ -34,12 +34,6 @@ if [[ -z "${PROJECT_ID:-}" ]]; then
     exit 1
 fi
 
-if [[ -z "${SLACK_WEBHOOK_URL:-}" ]]; then
-    echo "ERROR: SLACK_WEBHOOK_URL is required for uptime monitoring"
-    echo "Alerting without a webhook is pointless — set SLACK_WEBHOOK_URL in .env.production"
-    exit 1
-fi
-
 gcloud config set project "$PROJECT_ID"
 
 # ============================================
@@ -73,44 +67,31 @@ echo "Checks: ${CHECK_NAMES[*]}"
 echo ""
 
 # ============================================
-# Create Slack notification channel (if not exists)
+# Find Slack notification channel
 # ============================================
-echo "Checking for existing Slack notification channel..."
+echo "Looking for Slack notification channel..."
 
 CHANNELS_RESPONSE=$(curl -s --fail-with-body \
     -H "$AUTH_HEADER" \
     "$MONITORING_API/notificationChannels" \
     || { echo "ERROR: Failed to list notification channels"; exit 1; })
 
-EXISTING_CHANNEL=$(echo "$CHANNELS_RESPONSE" \
-    | jq -r '.notificationChannels[]? | select(.type == "webhook_tokenauth" and .labels.url == "'"$SLACK_WEBHOOK_URL"'") | .name' \
+CHANNEL_NAME=$(echo "$CHANNELS_RESPONSE" \
+    | jq -r '.notificationChannels[]? | select(.type == "slack") | .name' \
     | head -n1)
 
-if [[ -n "$EXISTING_CHANNEL" ]]; then
-    echo "Slack notification channel already exists: $EXISTING_CHANNEL"
-    CHANNEL_NAME="$EXISTING_CHANNEL"
-else
-    echo "Creating Slack notification channel..."
-    CHANNEL_RESPONSE=$(curl -s --fail-with-body \
-        -X POST \
-        -H "$AUTH_HEADER" \
-        -H "Content-Type: application/json" \
-        "$MONITORING_API/notificationChannels" \
-        -d '{
-            "type": "webhook_tokenauth",
-            "displayName": "Make Nashville Slack",
-            "labels": {
-                "url": "'"$SLACK_WEBHOOK_URL"'"
-            }
-        }' || { echo "ERROR: Failed to create notification channel"; exit 1; })
-    CHANNEL_NAME=$(echo "$CHANNEL_RESPONSE" | jq -r '.name')
-    if [[ -z "$CHANNEL_NAME" || "$CHANNEL_NAME" == "null" ]]; then
-        echo "ERROR: Failed to create notification channel"
-        echo "$CHANNEL_RESPONSE" | jq .
-        exit 1
-    fi
-    echo "Created notification channel: $CHANNEL_NAME"
+if [[ -z "$CHANNEL_NAME" ]]; then
+    echo "ERROR: No Slack notification channel found"
+    echo ""
+    echo "Set one up in the GCP Console:"
+    echo "  1. Go to: https://console.cloud.google.com/monitoring/alerting/notifications?project=$PROJECT_ID"
+    echo "  2. Click 'Edit' next to Slack"
+    echo "  3. Click 'Add Slack Channel' and authorize"
+    echo "  4. Re-run this script"
+    exit 1
 fi
+
+echo "Found Slack notification channel: $CHANNEL_NAME"
 
 # ============================================
 # Create uptime checks
