@@ -10,6 +10,7 @@
 
 # Deploy keys
 *deploy-key*.json
+google-sa-key.json
 
 # Temp files
 *.gstmp
