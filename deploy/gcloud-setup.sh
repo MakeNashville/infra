@@ -184,6 +184,12 @@ to.makenashville.org {
 			uri /oauth2/auth
 			header_up X-Forwarded-Host {host}
 			copy_headers X-Auth-Request-User X-Auth-Request-Email
+			@unauthorized {
+				status 401
+			}
+			handle_response @unauthorized {
+				redir * https://to.makenashville.org/oauth2/start?rd={scheme}://{host}{uri}
+			}
 		}
 		reverse_proxy kutt:3001
 	}
