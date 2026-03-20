@@ -113,7 +113,7 @@ CORS
 
     # Re-run configuration on the server
     echo "Applying configuration on server..."
-    gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='
+    gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" -- bash -s <<'SSHEOF'
         cd /opt/outline
 
         # Fetch new metadata
@@ -144,9 +144,9 @@ CORS
 
         # Create Kutt database if it doesn't exist on existing Postgres instances
         echo "Ensuring Kutt database exists..."
-        sudo docker compose exec -T postgres psql -U outline -tc "SELECT 1 FROM pg_roles WHERE rolname='"'"'kutt'"'"'" | grep -q 1 || \
-            sudo docker compose exec -T postgres psql -U outline -c "CREATE USER kutt WITH PASSWORD '"'"'${KUTT_DB_PASSWORD}'"'"';"
-        sudo docker compose exec -T postgres psql -U outline -tc "SELECT 1 FROM pg_database WHERE datname='"'"'kutt'"'"'" | grep -q 1 || \
+        sudo docker compose exec -T postgres psql -U outline -v kutt_pw="${KUTT_DB_PASSWORD}" -tc "SELECT 1 FROM pg_roles WHERE rolname='kutt'" | grep -q 1 || \
+            sudo docker compose exec -T postgres psql -U outline -v kutt_pw="${KUTT_DB_PASSWORD}" -c "CREATE USER kutt WITH PASSWORD :'kutt_pw';"
+        sudo docker compose exec -T postgres psql -U outline -tc "SELECT 1 FROM pg_database WHERE datname='kutt'" | grep -q 1 || \
             sudo docker compose exec -T postgres psql -U outline -c "CREATE DATABASE kutt OWNER kutt;"
 
         echo "Updating configuration for domain: $DOMAIN"
@@ -429,7 +429,7 @@ BACKUPSCRIPT
         sudo docker compose up -d
 
         echo "Update complete!"
-    '
+SSHEOF
 
     STATIC_IP=$(gcloud compute addresses describe "$INSTANCE_NAME-ip" \
         --region="$REGION" \
@@ -562,7 +562,7 @@ echo "   gcloud compute ssh $INSTANCE_NAME --zone=$ZONE --command='sudo tail -f 
 echo ""
 echo "4. Once DNS propagates, visit: https://$DOMAIN"
 echo ""
-echo "SAVE THESE SECRETS (they won't be shown again):"
+echo "SAVE THESE SECRETS - they will not be shown again:"
 echo "  SECRET_KEY=$SECRET_KEY"
 echo "  UTILS_SECRET=$UTILS_SECRET"
 echo "  POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
