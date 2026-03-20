@@ -95,7 +95,7 @@ services:
       outline:
         condition: service_healthy
       oauth2-proxy:
-        condition: service_healthy
+        condition: service_started
       kutt:
         condition: service_healthy
     healthcheck:
@@ -157,11 +157,6 @@ services:
       - OAUTH2_PROXY_UPSTREAM=static://202
       - OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
       - OAUTH2_PROXY_REVERSE_PROXY=true
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:4180/ping || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   postgres:
     image: postgres:16-alpine
