@@ -144,8 +144,8 @@ CORS
 
         # Create Kutt database if it doesn't exist on existing Postgres instances
         echo "Ensuring Kutt database exists..."
-        sudo docker compose exec -T postgres psql -U outline -v kutt_pw="${KUTT_DB_PASSWORD}" -tc "SELECT 1 FROM pg_roles WHERE rolname='kutt'" | grep -q 1 || \
-            sudo docker compose exec -T postgres psql -U outline -v kutt_pw="${KUTT_DB_PASSWORD}" -c "CREATE USER kutt WITH PASSWORD :'kutt_pw';"
+        sudo docker compose exec -T postgres psql -U outline -tc "SELECT 1 FROM pg_roles WHERE rolname='kutt'" | grep -q 1 || \
+            sudo docker compose exec -T postgres psql -U outline -c "CREATE USER kutt WITH PASSWORD '${KUTT_DB_PASSWORD}';"
         sudo docker compose exec -T postgres psql -U outline -tc "SELECT 1 FROM pg_database WHERE datname='kutt'" | grep -q 1 || \
             sudo docker compose exec -T postgres psql -U outline -c "CREATE DATABASE kutt OWNER kutt;"
 
