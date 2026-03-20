@@ -108,7 +108,7 @@ CORS
     if [[ -f "$SCRIPT_DIR/google-sa-key.json" ]]; then
         echo "Uploading Google service account key..."
         gcloud compute scp "$SCRIPT_DIR/google-sa-key.json" "$INSTANCE_NAME:~/google-sa-key.json" --zone="$ZONE"
-        gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mv ~/google-sa-key.json /opt/outline/google-sa-key.json && sudo chmod 600 /opt/outline/google-sa-key.json'
+        gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mv ~/google-sa-key.json /opt/outline/google-sa-key.json && sudo chmod 644 /opt/outline/google-sa-key.json'
     fi
 
     # Re-run configuration on the server
