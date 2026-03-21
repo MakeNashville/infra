@@ -105,7 +105,7 @@ services:
       retries: 5
 
   outline:
-    image: docker.getoutline.com/outlinewiki/outline:1.4.0
+    image: docker.getoutline.com/outlinewiki/outline:1.6.1
     restart: unless-stopped
     env_file: .env
     volumes:
