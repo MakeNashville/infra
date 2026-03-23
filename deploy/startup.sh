@@ -65,6 +65,16 @@ OAUTH2_CLIENT_SECRET=$(get_metadata "oauth2-client-secret")
 OAUTH2_COOKIE_SECRET=$(get_metadata "oauth2-cookie-secret")
 OAUTH2_GOOGLE_ADMIN_EMAIL=$(get_metadata "oauth2-google-admin-email")
 
+# Calendar sync
+CALENDAR_GOOGLE_CALENDAR_ID=$(get_metadata "calendar-google-calendar-id")
+CALENDAR_GOOGLE_CREDENTIALS_JSON=$(get_metadata "calendar-google-credentials-json")
+CALENDAR_EVENTBRITE_ORG_ID=$(get_metadata "calendar-eventbrite-org-id")
+CALENDAR_EVENTBRITE_TOKEN=$(get_metadata "calendar-eventbrite-token")
+CALENDAR_HOMEASSISTANT_BASE_URL=$(get_metadata "calendar-homeassistant-base-url")
+CALENDAR_HOMEASSISTANT_TOKEN=$(get_metadata "calendar-homeassistant-token")
+CALENDAR_HOMEASSISTANT_ENTITY_ID=$(get_metadata "calendar-homeassistant-entity-id")
+CALENDAR_CATEGORIES=$(get_metadata "calendar-categories")
+
 # Validate required fields
 if [[ -z "$DOMAIN" || -z "$SECRET_KEY" || -z "$UTILS_SECRET" ]]; then
     log "ERROR: Missing required metadata attributes (domain, secret-key, utils-secret)"
@@ -98,6 +108,8 @@ services:
         condition: service_healthy
       oauth2-proxy:
         condition: service_started
+      calendar-sync:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:2019/config/ || exit 1"]
       interval: 5s
@@ -175,6 +187,25 @@ services:
       - OAUTH2_PROXY_UPSTREAM=static://202
       - OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
       - OAUTH2_PROXY_REVERSE_PROXY=true
+
+  calendar-sync:
+    image: ghcr.io/makenashville/community-calendar:latest
+    restart: unless-stopped
+    environment:
+      - GOOGLE_CALENDAR_ID=${CALENDAR_GOOGLE_CALENDAR_ID}
+      - GOOGLE_CREDENTIALS_JSON=${CALENDAR_GOOGLE_CREDENTIALS_JSON}
+      - EVENTBRITE_ORGANIZATION_ID=${CALENDAR_EVENTBRITE_ORG_ID}
+      - EVENTBRITE_TOKEN=${CALENDAR_EVENTBRITE_TOKEN}
+      - HOMEASSISTANT_BASE_URL=${CALENDAR_HOMEASSISTANT_BASE_URL}
+      - HOMEASSISTANT_TOKEN=${CALENDAR_HOMEASSISTANT_TOKEN}
+      - HOMEASSISTANT_ENTITY_ID=${CALENDAR_HOMEASSISTANT_ENTITY_ID}
+      - CATEGORIES=${CALENDAR_CATEGORIES}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:8080/healthz || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   postgres:
     image: postgres:16-alpine
@@ -459,6 +490,15 @@ links.makenashville.org {
 		}
 		reverse_proxy shlink-web:8080
 	}
+}
+
+calendar.makenashville.org {
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	reverse_proxy calendar-sync:8080
 }
 
 to.makenashville.org, go.makenashville.org {

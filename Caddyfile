@@ -36,6 +36,15 @@ links.makenashville.org {
 	}
 }
 
+calendar.makenashville.org {
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	reverse_proxy calendar-sync:8080
+}
+
 to.makenashville.org, go.makenashville.org {
 	header {
 		X-Frame-Options SAMEORIGIN

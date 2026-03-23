@@ -20,6 +20,8 @@ services:
         condition: service_healthy
       oauth2-proxy:
         condition: service_started
+      calendar-sync:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:2019/config/ || exit 1"]
       interval: 5s
@@ -97,6 +99,25 @@ services:
       - OAUTH2_PROXY_UPSTREAM=static://202
       - OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
       - OAUTH2_PROXY_REVERSE_PROXY=true
+
+  calendar-sync:
+    image: ghcr.io/makenashville/community-calendar:latest
+    restart: unless-stopped
+    environment:
+      - GOOGLE_CALENDAR_ID=${CALENDAR_GOOGLE_CALENDAR_ID:-}
+      - GOOGLE_CREDENTIALS_JSON=${CALENDAR_GOOGLE_CREDENTIALS_JSON:-}
+      - EVENTBRITE_ORGANIZATION_ID=${CALENDAR_EVENTBRITE_ORG_ID:-}
+      - EVENTBRITE_TOKEN=${CALENDAR_EVENTBRITE_TOKEN:-}
+      - HOMEASSISTANT_BASE_URL=${CALENDAR_HOMEASSISTANT_BASE_URL:-}
+      - HOMEASSISTANT_TOKEN=${CALENDAR_HOMEASSISTANT_TOKEN:-}
+      - HOMEASSISTANT_ENTITY_ID=${CALENDAR_HOMEASSISTANT_ENTITY_ID:-}
+      - CATEGORIES=${CALENDAR_CATEGORIES:-}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:8080/healthz || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   postgres:
     image: postgres:16-alpine
