@@ -4,7 +4,7 @@ set -euo pipefail
 # One-time setup: Workload Identity Federation for GitHub Actions
 # Run this once to allow GitHub Actions to authenticate to GCP
 
-PROJECT_ID="${PROJECT_ID:-web-services-485500}"
+PROJECT_ID="${PROJECT_ID:?Set PROJECT_ID env var (e.g. export PROJECT_ID=my-gcp-project)}"
 REPO="MakeNashville/infra"
 POOL_NAME="github-actions-pool"
 PROVIDER_NAME="github-oidc"

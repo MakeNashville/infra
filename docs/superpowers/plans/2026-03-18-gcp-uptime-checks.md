@@ -401,7 +401,7 @@ Expected output:
 
 - [ ] **Step 3: Verify in GCP Console**
 
-Visit: `https://console.cloud.google.com/monitoring/uptime?project=web-services-485500`
+Visit: `https://console.cloud.google.com/monitoring/uptime?project=YOUR_PROJECT_ID`
 Confirm all uptime checks appear and are running.
 
 - [ ] **Step 4: Commit any fixes from testing**
