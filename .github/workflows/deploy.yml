@@ -60,6 +60,8 @@ jobs:
           oauth2-cookie-secret="${{ secrets.OAUTH2_PROXY_COOKIE_SECRET }}",\
           oauth2-google-group="${{ secrets.OAUTH2_PROXY_GOOGLE_GROUPS }}",\
           oauth2-google-admin-email="${{ secrets.OAUTH2_PROXY_GOOGLE_ADMIN_EMAIL }}",\
+          n8n-db-password="${{ secrets.N8N_DB_PASSWORD }}",\
+          n8n-encryption-key="${{ secrets.N8N_ENCRYPTION_KEY }}",\
           moodle-db-password="${{ secrets.MOODLE_DB_PASSWORD }}",\
           moodle-admin-password="${{ secrets.MOODLE_ADMIN_PASSWORD }}",\
           moodle-admin-email="${{ secrets.MOODLE_ADMIN_EMAIL }}",\
@@ -74,6 +76,9 @@ jobs:
 
           gcloud compute scp deploy/init-shlink-db.sql "$INSTANCE_NAME:~/init-shlink-db.sql" --zone="$ZONE"
           gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mv ~/init-shlink-db.sql /opt/outline/init-shlink-db.sql && sudo chmod 644 /opt/outline/init-shlink-db.sql'
+
+          gcloud compute scp deploy/init-n8n-db.sql "$INSTANCE_NAME:~/init-n8n-db.sql" --zone="$ZONE"
+          gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mv ~/init-n8n-db.sql /opt/outline/init-n8n-db.sql && sudo chmod 644 /opt/outline/init-n8n-db.sql'
 
           gcloud compute scp /tmp/google-sa-key.json "$INSTANCE_NAME:~/google-sa-key.json" --zone="$ZONE"
           gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mv ~/google-sa-key.json /opt/outline/google-sa-key.json && sudo chmod 644 /opt/outline/google-sa-key.json'
