@@ -59,7 +59,13 @@ jobs:
           oauth2-client-secret="${{ secrets.OAUTH2_PROXY_CLIENT_SECRET }}",\
           oauth2-cookie-secret="${{ secrets.OAUTH2_PROXY_COOKIE_SECRET }}",\
           oauth2-google-group="${{ secrets.OAUTH2_PROXY_GOOGLE_GROUPS }}",\
-          oauth2-google-admin-email="${{ secrets.OAUTH2_PROXY_GOOGLE_ADMIN_EMAIL }}"
+          oauth2-google-admin-email="${{ secrets.OAUTH2_PROXY_GOOGLE_ADMIN_EMAIL }}",\
+          moodle-db-password="${{ secrets.MOODLE_DB_PASSWORD }}",\
+          moodle-admin-password="${{ secrets.MOODLE_ADMIN_PASSWORD }}",\
+          moodle-admin-email="${{ secrets.MOODLE_ADMIN_EMAIL }}",\
+          moodle-webhook-secret="${{ secrets.MOODLE_WEBHOOK_SECRET }}",\
+          grit-api-url="${{ secrets.GRIT_API_URL }}",\
+          grit-api-key="${{ secrets.GRIT_API_KEY }}"
 
       - name: Upload files to server
         run: |
@@ -71,6 +77,11 @@ jobs:
 
           gcloud compute scp /tmp/google-sa-key.json "$INSTANCE_NAME:~/google-sa-key.json" --zone="$ZONE"
           gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mv ~/google-sa-key.json /opt/outline/google-sa-key.json && sudo chmod 644 /opt/outline/google-sa-key.json'
+
+          gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mkdir -p /opt/outline/grit-provisioner'
+          gcloud compute scp deploy/grit-provisioner/server.py "$INSTANCE_NAME:~/grit-server.py" --zone="$ZONE"
+          gcloud compute scp deploy/grit-provisioner/course-tool-map.json "$INSTANCE_NAME:~/grit-course-tool-map.json" --zone="$ZONE"
+          gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mv ~/grit-server.py /opt/outline/grit-provisioner/server.py && sudo mv ~/grit-course-tool-map.json /opt/outline/grit-provisioner/course-tool-map.json && sudo chmod 644 /opt/outline/grit-provisioner/*'
 
       - name: Deploy
         run: |
