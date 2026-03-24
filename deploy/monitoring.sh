@@ -45,8 +45,8 @@ gcloud services enable monitoring.googleapis.com
 # ============================================
 # Define checks (ordered arrays for deterministic iteration)
 # ============================================
-CHECK_NAMES=(uptime-wiki uptime-grithub uptime-members uptime-website)
-CHECK_URLS=("https://wiki.makenashville.org" "https://makenashville.grithub.app/" "https://members.makenashville.org/" "https://makenashville.org")
+CHECK_NAMES=(uptime-wiki uptime-grithub uptime-members uptime-website uptime-learn)
+CHECK_URLS=("https://wiki.makenashville.org" "https://makenashville.grithub.app/" "https://members.makenashville.org/" "https://makenashville.org" "https://learn.makenashville.org/login/index.php")
 
 if [[ -n "${HOME_ASSISTANT_URL:-}" ]]; then
     CHECK_NAMES+=(uptime-homeassistant)
