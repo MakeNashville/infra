@@ -664,6 +664,9 @@ cat > moodle-docker/entrypoint.sh <<'MOODLEENTRY'
 #!/bin/bash
 set -e
 
+# Set Apache document root (required by moodlehq base image's Apache config)
+export APACHE_DOCUMENT_ROOT=/var/www/html
+
 # Generate config.php from environment variables
 cat > /var/www/html/config.php <<MOODLECFG
 <?php
