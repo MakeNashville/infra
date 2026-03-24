@@ -267,7 +267,7 @@ services:
       - COURSE_TOOL_MAP_PATH=/app/course-tool-map.json
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:8000/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:8000/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
