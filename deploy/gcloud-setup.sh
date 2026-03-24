@@ -44,6 +44,9 @@ UTILS_SECRET="${UTILS_SECRET:-$(openssl rand -hex 32)}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-$(openssl rand -base64 24 | tr -d '/+=')}"
 SHLINK_DB_PASSWORD="${SHLINK_DB_PASSWORD:-$(openssl rand -base64 24 | tr -d '/+=')}"
 OAUTH2_PROXY_COOKIE_SECRET="${OAUTH2_PROXY_COOKIE_SECRET:-$(openssl rand -base64 32 | head -c 32)}"
+MOODLE_DB_PASSWORD="${MOODLE_DB_PASSWORD:-$(openssl rand -base64 24 | tr -d '/+=')}"
+MOODLE_ADMIN_PASSWORD="${MOODLE_ADMIN_PASSWORD:-$(openssl rand -base64 24 | tr -d '/+=')}"
+MOODLE_WEBHOOK_SECRET="${MOODLE_WEBHOOK_SECRET:-$(openssl rand -hex 32)}"
 
 # ============================================
 # Check if instance exists
@@ -82,7 +85,13 @@ oauth2-client-id="${OAUTH2_PROXY_CLIENT_ID:-}",\
 oauth2-client-secret="${OAUTH2_PROXY_CLIENT_SECRET:-}",\
 oauth2-cookie-secret="$OAUTH2_PROXY_COOKIE_SECRET",\
 oauth2-google-group="${OAUTH2_PROXY_GOOGLE_GROUPS:-}",\
-oauth2-google-admin-email="${OAUTH2_PROXY_GOOGLE_ADMIN_EMAIL:-}"
+oauth2-google-admin-email="${OAUTH2_PROXY_GOOGLE_ADMIN_EMAIL:-}",\
+moodle-db-password="$MOODLE_DB_PASSWORD",\
+moodle-admin-password="$MOODLE_ADMIN_PASSWORD",\
+moodle-admin-email="${MOODLE_ADMIN_EMAIL:-}",\
+moodle-webhook-secret="$MOODLE_WEBHOOK_SECRET",\
+grit-api-url="${GRIT_API_URL:-}",\
+grit-api-key="${GRIT_API_KEY:-}"
 
     # Update GCS bucket CORS for direct browser uploads
     echo "Updating GCS bucket CORS..."
@@ -109,6 +118,13 @@ CORS
         gcloud compute scp "$SCRIPT_DIR/google-sa-key.json" "$INSTANCE_NAME:~/google-sa-key.json" --zone="$ZONE"
         gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mv ~/google-sa-key.json /opt/outline/google-sa-key.json && sudo chmod 644 /opt/outline/google-sa-key.json'
     fi
+
+    # Upload GRIT provisioner files
+    echo "Uploading GRIT provisioner files..."
+    gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mkdir -p /opt/outline/grit-provisioner'
+    gcloud compute scp "$SCRIPT_DIR/grit-provisioner/server.py" "$INSTANCE_NAME:~/grit-server.py" --zone="$ZONE"
+    gcloud compute scp "$SCRIPT_DIR/grit-provisioner/course-tool-map.json" "$INSTANCE_NAME:~/grit-course-tool-map.json" --zone="$ZONE"
+    gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mv ~/grit-server.py /opt/outline/grit-provisioner/server.py && sudo mv ~/grit-course-tool-map.json /opt/outline/grit-provisioner/course-tool-map.json && sudo chmod 644 /opt/outline/grit-provisioner/*'
 
     # Apply configuration on server
     echo "Applying configuration on server..."
@@ -227,7 +243,13 @@ oauth2-client-id="${OAUTH2_PROXY_CLIENT_ID:-}",\
 oauth2-client-secret="${OAUTH2_PROXY_CLIENT_SECRET:-}",\
 oauth2-cookie-secret="$OAUTH2_PROXY_COOKIE_SECRET",\
 oauth2-google-group="${OAUTH2_PROXY_GOOGLE_GROUPS:-}",\
-oauth2-google-admin-email="${OAUTH2_PROXY_GOOGLE_ADMIN_EMAIL:-}"
+oauth2-google-admin-email="${OAUTH2_PROXY_GOOGLE_ADMIN_EMAIL:-}",\
+moodle-db-password="$MOODLE_DB_PASSWORD",\
+moodle-admin-password="$MOODLE_ADMIN_PASSWORD",\
+moodle-admin-email="${MOODLE_ADMIN_EMAIL:-}",\
+moodle-webhook-secret="$MOODLE_WEBHOOK_SECRET",\
+grit-api-url="${GRIT_API_URL:-}",\
+grit-api-key="${GRIT_API_KEY:-}"
 
 echo ""
 echo "============================================"
@@ -249,6 +271,9 @@ echo "SAVE THESE SECRETS - they will not be shown again:"
 echo "  SECRET_KEY=$SECRET_KEY"
 echo "  UTILS_SECRET=$UTILS_SECRET"
 echo "  POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
+echo "  MOODLE_DB_PASSWORD=$MOODLE_DB_PASSWORD"
+echo "  MOODLE_ADMIN_PASSWORD=$MOODLE_ADMIN_PASSWORD"
+echo "  MOODLE_WEBHOOK_SECRET=$MOODLE_WEBHOOK_SECRET"
 echo ""
 echo "USEFUL COMMANDS:"
 echo "  # SSH into server"
