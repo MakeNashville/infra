@@ -34,22 +34,24 @@ MOODLE_WEBHOOK_SECRET=$(get_metadata "moodle-webhook-secret")
 GRIT_API_URL=$(get_metadata "grit-api-url")
 GRIT_API_KEY=$(get_metadata "grit-api-key")
 
-# Create Shlink database if it doesn't exist on existing Postgres instances
-echo "Ensuring Shlink database exists..."
-sudo docker compose exec -T postgres psql -U outline -tc "SELECT 1 FROM pg_roles WHERE rolname='shlink'" | grep -q 1 || \
-    sudo docker compose exec -T postgres psql -U outline -c "CREATE USER shlink WITH PASSWORD '${SHLINK_DB_PASSWORD}';"
-# Always update the Shlink password so changes propagate correctly
-sudo docker compose exec -T postgres psql -U outline -c "ALTER USER shlink WITH PASSWORD '${SHLINK_DB_PASSWORD}';"
-sudo docker compose exec -T postgres psql -U outline -tc "SELECT 1 FROM pg_database WHERE datname='shlink'" | grep -q 1 || \
-    sudo docker compose exec -T postgres psql -U outline -c "CREATE DATABASE shlink OWNER shlink;"
+# Create databases if postgres is running (skip if it's down — they'll be created after restart)
+if sudo docker compose exec -T postgres pg_isready -U outline > /dev/null 2>&1; then
+    echo "Ensuring Shlink database exists..."
+    sudo docker compose exec -T postgres psql -U outline -tc "SELECT 1 FROM pg_roles WHERE rolname='shlink'" | grep -q 1 || \
+        sudo docker compose exec -T postgres psql -U outline -c "CREATE USER shlink WITH PASSWORD '${SHLINK_DB_PASSWORD}';"
+    sudo docker compose exec -T postgres psql -U outline -c "ALTER USER shlink WITH PASSWORD '${SHLINK_DB_PASSWORD}';"
+    sudo docker compose exec -T postgres psql -U outline -tc "SELECT 1 FROM pg_database WHERE datname='shlink'" | grep -q 1 || \
+        sudo docker compose exec -T postgres psql -U outline -c "CREATE DATABASE shlink OWNER shlink;"
 
-# Create Moodle database if it doesn't exist on existing Postgres instances
-echo "Ensuring Moodle database exists..."
-sudo docker compose exec -T postgres psql -U outline -tc "SELECT 1 FROM pg_roles WHERE rolname='moodle'" | grep -q 1 || \
-    sudo docker compose exec -T postgres psql -U outline -c "CREATE USER moodle WITH PASSWORD '${MOODLE_DB_PASSWORD}';"
-sudo docker compose exec -T postgres psql -U outline -c "ALTER USER moodle WITH PASSWORD '${MOODLE_DB_PASSWORD}';"
-sudo docker compose exec -T postgres psql -U outline -tc "SELECT 1 FROM pg_database WHERE datname='moodle'" | grep -q 1 || \
-    sudo docker compose exec -T postgres psql -U outline -c "CREATE DATABASE moodle OWNER moodle;"
+    echo "Ensuring Moodle database exists..."
+    sudo docker compose exec -T postgres psql -U outline -tc "SELECT 1 FROM pg_roles WHERE rolname='moodle'" | grep -q 1 || \
+        sudo docker compose exec -T postgres psql -U outline -c "CREATE USER moodle WITH PASSWORD '${MOODLE_DB_PASSWORD}';"
+    sudo docker compose exec -T postgres psql -U outline -c "ALTER USER moodle WITH PASSWORD '${MOODLE_DB_PASSWORD}';"
+    sudo docker compose exec -T postgres psql -U outline -tc "SELECT 1 FROM pg_database WHERE datname='moodle'" | grep -q 1 || \
+        sudo docker compose exec -T postgres psql -U outline -c "CREATE DATABASE moodle OWNER moodle;"
+else
+    echo "Postgres not running — skipping DB creation (will retry after restart)"
+fi
 
 echo "Updating configuration for domain: $DOMAIN"
 

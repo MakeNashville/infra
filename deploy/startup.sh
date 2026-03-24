@@ -646,8 +646,8 @@ mkdir -p moodle-docker
 cat > moodle-docker/Dockerfile <<'MOODLEDOCKERFILE'
 FROM moodlehq/moodle-php-apache:8.4
 
-# Download Moodle 4.5.10 (LTS, supported until October 2027)
-RUN curl -fsSL https://download.moodle.org/download.php/stable405/moodle-4.5.10.tgz \
+# Download Moodle 4.5 LTS (supported until October 2027)
+RUN curl -fsSL -L https://download.moodle.org/download.php/direct/stable405/moodle-latest-405.tgz \
     | tar -xz --strip-components=1 -C /var/www/html \
     && chown -R www-data:www-data /var/www/html \
     && chmod 0770 /var/www/moodledata
@@ -663,6 +663,9 @@ MOODLEDOCKERFILE
 cat > moodle-docker/entrypoint.sh <<'MOODLEENTRY'
 #!/bin/bash
 set -e
+
+# Set Apache document root (required by moodlehq base image's Apache config)
+export APACHE_DOCUMENT_ROOT=/var/www/html
 
 # Generate config.php from environment variables
 cat > /var/www/html/config.php <<MOODLECFG
