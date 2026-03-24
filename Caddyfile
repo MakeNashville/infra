@@ -53,5 +53,5 @@ learn.makenashville.org {
 		Referrer-Policy strict-origin-when-cross-origin
 		-Server
 	}
-	reverse_proxy moodle:8080
+	reverse_proxy moodle:80
 }

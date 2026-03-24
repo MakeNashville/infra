@@ -110,7 +110,7 @@ learn.makenashville.org {
 		Referrer-Policy strict-origin-when-cross-origin
 		-Server
 	}
-	reverse_proxy moodle:8080
+	reverse_proxy moodle:80
 }
 CADDY
 
@@ -278,30 +278,25 @@ services:
       - OAUTH2_PROXY_REVERSE_PROXY=true
 
   moodle:
-    image: bitnami/moodle:4.5
+    build: ./moodle-docker
     restart: unless-stopped
     environment:
-      - MOODLE_DATABASE_TYPE=pgsql
-      - MOODLE_DATABASE_HOST=postgres
-      - MOODLE_DATABASE_PORT_NUMBER=5432
-      - MOODLE_DATABASE_NAME=moodle
-      - MOODLE_DATABASE_USER=moodle
-      - MOODLE_DATABASE_PASSWORD=${MOODLE_DB_PASSWORD}
-      - MOODLE_USERNAME=admin
-      - MOODLE_PASSWORD=${MOODLE_ADMIN_PASSWORD}
-      - MOODLE_EMAIL=${MOODLE_ADMIN_EMAIL}
-      - MOODLE_HOST=learn.makenashville.org
-      - MOODLE_SITE_NAME=Make Nashville Learning
-      - MOODLE_PORT_NUMBER=8080
-      - MOODLE_REVERSEPROXY=true
-      - MOODLE_SSLPROXY=true
-      - MOODLE_LANG=en
-      - PHP_MEMORY_LIMIT=512M
+      - MOODLE_DB_HOST=postgres
+      - MOODLE_DB_PORT=5432
+      - MOODLE_DB_NAME=moodle
+      - MOODLE_DB_USER=moodle
+      - MOODLE_DB_PASSWORD=${MOODLE_DB_PASSWORD}
+      - MOODLE_WWWROOT=https://learn.makenashville.org
+      - MOODLE_ADMIN_PASSWORD=${MOODLE_ADMIN_PASSWORD}
+      - MOODLE_ADMIN_EMAIL=${MOODLE_ADMIN_EMAIL}
+      - MOODLE_REDIS_HOST=redis
+      - MOODLE_REDIS_PORT=6379
+      - MOODLE_REDIS_DB=3
     volumes:
-      - moodle_data:/bitnami/moodledata
-      - moodle_local:/bitnami/moodle/local
+      - moodle_data:/var/www/moodledata
+      - moodle_local:/var/www/html/local
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/login/index.php || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost/login/index.php || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 10
@@ -422,7 +417,7 @@ sudo chmod +x /opt/outline/backup.sh
 # Restart services to pick up new config
 echo "Restarting services..."
 sudo docker compose down --remove-orphans
-sudo docker compose up -d
+sudo docker compose up -d --build
 
 # Generate Shlink API key if none exist
 echo "Checking Shlink API keys..."

@@ -126,6 +126,13 @@ CORS
     gcloud compute scp "$SCRIPT_DIR/grit-provisioner/course-tool-map.json" "$INSTANCE_NAME:~/grit-course-tool-map.json" --zone="$ZONE"
     gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mv ~/grit-server.py /opt/outline/grit-provisioner/server.py && sudo mv ~/grit-course-tool-map.json /opt/outline/grit-provisioner/course-tool-map.json && sudo chmod 644 /opt/outline/grit-provisioner/*'
 
+    # Upload Moodle Docker build files
+    echo "Uploading Moodle Docker files..."
+    gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mkdir -p /opt/outline/moodle-docker'
+    gcloud compute scp "$SCRIPT_DIR/moodle/Dockerfile" "$INSTANCE_NAME:~/moodle-Dockerfile" --zone="$ZONE"
+    gcloud compute scp "$SCRIPT_DIR/moodle/entrypoint.sh" "$INSTANCE_NAME:~/moodle-entrypoint.sh" --zone="$ZONE"
+    gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mv ~/moodle-Dockerfile /opt/outline/moodle-docker/Dockerfile && sudo mv ~/moodle-entrypoint.sh /opt/outline/moodle-docker/entrypoint.sh && sudo chmod +x /opt/outline/moodle-docker/entrypoint.sh'
+
     # Apply configuration on server
     echo "Applying configuration on server..."
     gcloud compute scp "$SCRIPT_DIR/update-server.sh" "$INSTANCE_NAME:~/update-server.sh" --zone="$ZONE"
