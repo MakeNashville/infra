@@ -308,8 +308,6 @@ services:
   oauth2-proxy:
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.7.1
     restart: unless-stopped
-    volumes:
-      - ./google-sa-key.json:/etc/oauth2-proxy/google-sa-key.json:ro
     environment:
       - OAUTH2_PROXY_PROVIDER=google
       - OAUTH2_PROXY_CLIENT_ID=${OAUTH2_CLIENT_ID}
@@ -319,9 +317,6 @@ services:
       - OAUTH2_PROXY_COOKIE_DOMAINS=.makenashville.org
       - OAUTH2_PROXY_WHITELIST_DOMAINS=.makenashville.org
       - OAUTH2_PROXY_EMAIL_DOMAINS=makenashville.org
-      - OAUTH2_PROXY_GOOGLE_GROUPS=${OAUTH2_GOOGLE_GROUP}
-      - OAUTH2_PROXY_GOOGLE_ADMIN_EMAIL=${OAUTH2_GOOGLE_ADMIN_EMAIL}
-      - OAUTH2_PROXY_GOOGLE_SERVICE_ACCOUNT_JSON=/etc/oauth2-proxy/google-sa-key.json
       - OAUTH2_PROXY_UPSTREAM=static://202
       - OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
       - OAUTH2_PROXY_REVERSE_PROXY=true
