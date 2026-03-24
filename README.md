@@ -1,6 +1,6 @@
 # Make Nashville Infrastructure
 
-Docker Compose setup for [Outline](https://www.getoutline.com/) wiki and supporting services, with local development and GCP deployment.
+Docker Compose setup for [Outline](https://www.getoutline.com/) wiki, [n8n](https://n8n.io/) workflow automation, and supporting services, with local development and GCP deployment.
 
 ## Overview
 
@@ -11,6 +11,15 @@ Docker Compose setup for [Outline](https://www.getoutline.com/) wiki and support
 | **PostgreSQL** | `postgres:16-alpine` | `postgres:16-alpine` |
 | **Redis** | `redis:7-alpine` | `redis:7-alpine` |
 | **Storage** | MinIO (local) | Google Cloud Storage |
+| **n8n** | `n8nio/n8n:latest` | `n8nio/n8n:latest` |
+
+## URLs
+
+| Service | URL | Notes |
+|---------|-----|-------|
+| Outline wiki | `https://wiki.makenashville.org` | OAuth2 protected |
+| n8n workflow editor | `https://auto.makenashville.org` | OAuth2 protected |
+| n8n webhooks | `https://auto.makenashville.org/webhook/*` | Public |
 
 ## Local Development
 
@@ -97,6 +106,8 @@ This only needs to be done once when setting up a new environment.
    | `OAUTH2_PROXY_COOKIE_SECRET` | OAuth2 Proxy cookie secret |
    | `OAUTH2_PROXY_GOOGLE_GROUPS` | Allowed Google group for access |
    | `OAUTH2_PROXY_GOOGLE_ADMIN_EMAIL` | Google Workspace admin email for group lookup |
+   | `N8N_DB_PASSWORD` | n8n database password |
+   | `N8N_ENCRYPTION_KEY` | n8n credentials encryption key (32-byte hex) |
 
    Optionally add these as Actions Variables (non-secret) to override defaults:
 
