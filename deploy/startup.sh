@@ -204,7 +204,7 @@ services:
       - moodle_data:/var/www/moodledata
       - moodle_local:/var/www/html/local
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost/login/index.php || exit 1"]
+      test: ["CMD-SHELL", "curl -sf -H 'X-Forwarded-For: 127.0.0.1' http://localhost/login/index.php || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 10
@@ -644,7 +644,7 @@ log "Creating Moodle Docker image files..."
 mkdir -p moodle-docker
 
 cat > moodle-docker/Dockerfile <<'MOODLEDOCKERFILE'
-FROM moodlehq/moodle-php-apache:8.4
+FROM moodlehq/moodle-php-apache:8.3
 
 # Download Moodle 4.5 LTS (supported until October 2027)
 RUN curl -fsSL -L https://download.moodle.org/download.php/direct/stable405/moodle-latest-405.tgz \

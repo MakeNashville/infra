@@ -1,4 +1,4 @@
-FROM moodlehq/moodle-php-apache:8.4
+FROM moodlehq/moodle-php-apache:8.3
 
 # Download Moodle 4.5 LTS (supported until October 2027)
 RUN curl -fsSL -L https://download.moodle.org/download.php/direct/stable405/moodle-latest-405.tgz \
