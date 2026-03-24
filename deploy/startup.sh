@@ -711,21 +711,22 @@ MOODLECFG
 chown www-data:www-data /var/www/html/config.php
 
 # Run Moodle install if database tables don't exist yet
-if ! sudo -u www-data php /var/www/html/admin/cli/check_database_schema.php > /dev/null 2>&1; then
+# Use su instead of sudo (not available in this image)
+if ! su -s /bin/bash www-data -c "php /var/www/html/admin/cli/check_database_schema.php" > /dev/null 2>&1; then
     echo "First boot detected — installing Moodle..."
-    sudo -u www-data php /var/www/html/admin/cli/install_database.php \
+    su -s /bin/bash www-data -c "php /var/www/html/admin/cli/install_database.php \
         --agree-license \
-        --fullname="Make Nashville Learning" \
-        --shortname="MNLearn" \
-        --adminuser="admin" \
-        --adminpass="${MOODLE_ADMIN_PASSWORD:-changeme}" \
-        --adminemail="${MOODLE_ADMIN_EMAIL:-admin@makenashville.org}" \
+        --fullname='Make Nashville Learning' \
+        --shortname='MNLearn' \
+        --adminuser=admin \
+        --adminpass='${MOODLE_ADMIN_PASSWORD:-changeme}' \
+        --adminemail='${MOODLE_ADMIN_EMAIL:-admin@makenashville.org}'" \
         || echo "Install failed or already installed"
 fi
 
 # Start cron in background (every minute)
 (while true; do
-    sudo -u www-data php /var/www/html/admin/cli/cron.php > /dev/null 2>&1
+    su -s /bin/bash www-data -c "php /var/www/html/admin/cli/cron.php" > /dev/null 2>&1
     sleep 60
 done) &
 
@@ -792,7 +793,9 @@ learn.makenashville.org {
 		Referrer-Policy strict-origin-when-cross-origin
 		-Server
 	}
-	reverse_proxy moodle:80
+	reverse_proxy moodle:80 {
+		header_up Host moodle
+	}
 }
 CADDY
 
