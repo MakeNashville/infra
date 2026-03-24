@@ -397,7 +397,7 @@ rm -f "\${MOODLE_BACKUP_FILE}"
 
 # Backup Moodle data volume
 MOODLEDATA_BACKUP_FILE="/tmp/moodledata-\${TIMESTAMP}.tar.gz"
-docker run --rm -v moodle_data:/data:ro -v /tmp:/backup alpine tar czf "/backup/moodledata-\${TIMESTAMP}.tar.gz" -C /data .
+docker run --rm -v outline_moodle_data:/data:ro -v /tmp:/backup alpine tar czf "/backup/moodledata-\${TIMESTAMP}.tar.gz" -C /data .
 gcloud storage cp "\${MOODLEDATA_BACKUP_FILE}" "\${BUCKET}/moodledata-\${TIMESTAMP}.tar.gz"
 rm -f "\${MOODLEDATA_BACKUP_FILE}"
 

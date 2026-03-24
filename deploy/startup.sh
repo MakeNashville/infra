@@ -60,6 +60,7 @@ GCS_BUCKET=$(get_metadata "gcs-bucket")
 SLACK_CLIENT_ID=$(get_metadata "slack-client-id")
 SLACK_CLIENT_SECRET=$(get_metadata "slack-client-secret")
 SHLINK_DB_PASSWORD=$(get_metadata "shlink-db-password")
+SLACK_WEBHOOK_URL=$(get_metadata "slack-webhook-url")
 OAUTH2_CLIENT_ID=$(get_metadata "oauth2-client-id")
 OAUTH2_CLIENT_SECRET=$(get_metadata "oauth2-client-secret")
 OAUTH2_COOKIE_SECRET=$(get_metadata "oauth2-cookie-secret")
@@ -230,6 +231,7 @@ services:
       - GRIT_API_KEY=${GRIT_API_KEY}
       - WEBHOOK_SECRET=${MOODLE_WEBHOOK_SECRET}
       - COURSE_TOOL_MAP_PATH=/app/course-tool-map.json
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:8000/health || exit 1"]
       interval: 10s
