@@ -186,30 +186,25 @@ services:
       - OAUTH2_PROXY_REVERSE_PROXY=true
 
   moodle:
-    image: bitnami/moodle:4.5
+    build: ./moodle-docker
     restart: unless-stopped
     environment:
-      - MOODLE_DATABASE_TYPE=pgsql
-      - MOODLE_DATABASE_HOST=postgres
-      - MOODLE_DATABASE_PORT_NUMBER=5432
-      - MOODLE_DATABASE_NAME=moodle
-      - MOODLE_DATABASE_USER=moodle
-      - MOODLE_DATABASE_PASSWORD=${MOODLE_DB_PASSWORD}
-      - MOODLE_USERNAME=admin
-      - MOODLE_PASSWORD=${MOODLE_ADMIN_PASSWORD}
-      - MOODLE_EMAIL=${MOODLE_ADMIN_EMAIL}
-      - MOODLE_HOST=learn.makenashville.org
-      - MOODLE_SITE_NAME=Make Nashville Learning
-      - MOODLE_PORT_NUMBER=8080
-      - MOODLE_REVERSEPROXY=true
-      - MOODLE_SSLPROXY=true
-      - MOODLE_LANG=en
-      - PHP_MEMORY_LIMIT=512M
+      - MOODLE_DB_HOST=postgres
+      - MOODLE_DB_PORT=5432
+      - MOODLE_DB_NAME=moodle
+      - MOODLE_DB_USER=moodle
+      - MOODLE_DB_PASSWORD=${MOODLE_DB_PASSWORD}
+      - MOODLE_WWWROOT=https://learn.makenashville.org
+      - MOODLE_ADMIN_PASSWORD=${MOODLE_ADMIN_PASSWORD}
+      - MOODLE_ADMIN_EMAIL=${MOODLE_ADMIN_EMAIL}
+      - MOODLE_REDIS_HOST=redis
+      - MOODLE_REDIS_PORT=6379
+      - MOODLE_REDIS_DB=3
     volumes:
-      - moodle_data:/bitnami/moodledata
-      - moodle_local:/bitnami/moodle/local
+      - moodle_data:/var/www/moodledata
+      - moodle_local:/var/www/html/local
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/login/index.php || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost/login/index.php || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 10
@@ -644,6 +639,98 @@ cat > grit-provisioner/course-tool-map.json <<'GRITMAP'
 }
 GRITMAP
 
+# Create Moodle Docker build context
+log "Creating Moodle Docker image files..."
+mkdir -p moodle-docker
+
+cat > moodle-docker/Dockerfile <<'MOODLEDOCKERFILE'
+FROM moodlehq/moodle-php-apache:8.4
+
+# Download Moodle 4.5.10 (LTS, supported until October 2027)
+RUN curl -fsSL https://download.moodle.org/download.php/stable405/moodle-4.5.10.tgz \
+    | tar -xz --strip-components=1 -C /var/www/html \
+    && chown -R www-data:www-data /var/www/html \
+    && chmod 0770 /var/www/moodledata
+
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+EXPOSE 80
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+MOODLEDOCKERFILE
+
+cat > moodle-docker/entrypoint.sh <<'MOODLEENTRY'
+#!/bin/bash
+set -e
+
+# Generate config.php from environment variables
+cat > /var/www/html/config.php <<MOODLECFG
+<?php
+unset(\$CFG);
+global \$CFG;
+\$CFG = new stdClass();
+
+\$CFG->dbtype    = 'pgsql';
+\$CFG->dblibrary = 'native';
+\$CFG->dbhost    = '${MOODLE_DB_HOST:-postgres}';
+\$CFG->dbname    = '${MOODLE_DB_NAME:-moodle}';
+\$CFG->dbuser    = '${MOODLE_DB_USER:-moodle}';
+\$CFG->dbpass    = '${MOODLE_DB_PASSWORD}';
+\$CFG->prefix    = 'mdl_';
+\$CFG->dboptions = [
+    'dbpersist' => false,
+    'dbsocket'  => false,
+    'dbport'    => '${MOODLE_DB_PORT:-5432}',
+];
+
+\$CFG->wwwroot   = '${MOODLE_WWWROOT:-https://learn.makenashville.org}';
+\$CFG->dataroot  = '/var/www/moodledata';
+\$CFG->admin     = 'admin';
+
+// Redis sessions (DB index 3)
+\$CFG->session_handler_class        = '\core\session\redis';
+\$CFG->session_redis_host           = '${MOODLE_REDIS_HOST:-redis}';
+\$CFG->session_redis_port           = ${MOODLE_REDIS_PORT:-6379};
+\$CFG->session_redis_database       = ${MOODLE_REDIS_DB:-3};
+\$CFG->session_redis_prefix         = 'mdl_sess_';
+\$CFG->session_redis_acquire_lock_timeout = 120;
+\$CFG->session_redis_lock_expire    = 7200;
+\$CFG->session_redis_lock_retry     = 100;
+
+// Reverse proxy (behind Caddy)
+\$CFG->reverseproxy = true;
+\$CFG->sslproxy     = true;
+
+require_once(__DIR__ . '/lib/setup.php');
+MOODLECFG
+
+chown www-data:www-data /var/www/html/config.php
+
+# Run Moodle install if database tables don't exist yet
+if ! sudo -u www-data php /var/www/html/admin/cli/check_database_schema.php > /dev/null 2>&1; then
+    echo "First boot detected — installing Moodle..."
+    sudo -u www-data php /var/www/html/admin/cli/install_database.php \
+        --agree-license \
+        --fullname="Make Nashville Learning" \
+        --shortname="MNLearn" \
+        --adminuser="admin" \
+        --adminpass="${MOODLE_ADMIN_PASSWORD:-changeme}" \
+        --adminemail="${MOODLE_ADMIN_EMAIL:-admin@makenashville.org}" \
+        || echo "Install failed or already installed"
+fi
+
+# Start cron in background (every minute)
+(while true; do
+    sudo -u www-data php /var/www/html/admin/cli/cron.php > /dev/null 2>&1
+    sleep 60
+done) &
+
+# Start Apache in foreground
+exec apache2-foreground
+MOODLEENTRY
+chmod +x moodle-docker/entrypoint.sh
+
 # Create Caddyfile
 log "Creating Caddyfile..."
 cat > Caddyfile <<CADDY
@@ -702,7 +789,7 @@ learn.makenashville.org {
 		Referrer-Policy strict-origin-when-cross-origin
 		-Server
 	}
-	reverse_proxy moodle:8080
+	reverse_proxy moodle:80
 }
 CADDY
 
@@ -769,7 +856,7 @@ docker compose pull
 
 # Start services
 log "Starting services..."
-docker compose up -d
+docker compose up -d --build
 
 # Wait for services to be healthy
 log "Waiting for services to start..."
