@@ -8,13 +8,52 @@ on:
 permissions:
   contents: read
   id-token: write
+  packages: write
 
 concurrency:
   group: deploy
   cancel-in-progress: false
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run grit-provisioner tests
+        run: python deploy/grit-provisioner/server_test.py -v
+
+      - name: Validate docker-compose config
+        run: docker compose config --quiet
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Moodle image
+        run: |
+          TAG="ghcr.io/makenashville/moodle:sha-${GITHUB_SHA::8}"
+          docker build -t "$TAG" -t "ghcr.io/makenashville/moodle:latest" deploy/moodle/
+          docker push "$TAG"
+          docker push "ghcr.io/makenashville/moodle:latest"
+
   deploy:
+    needs: [test, build]
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -67,6 +106,7 @@ jobs:
           moodle-admin-email="${{ secrets.MOODLE_ADMIN_EMAIL }}",\
           moodle-webhook-secret="${{ secrets.MOODLE_WEBHOOK_SECRET }}",\
           grit-api-url="${{ secrets.GRIT_API_URL }}",\
+          moodle-image-tag="sha-${GITHUB_SHA::8}",\
           grit-api-key="${{ secrets.GRIT_API_KEY }}"
 
       - name: Upload files to server
@@ -88,10 +128,11 @@ jobs:
           gcloud compute scp deploy/grit-provisioner/course-tool-map.json "$INSTANCE_NAME:~/grit-course-tool-map.json" --zone="$ZONE"
           gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mv ~/grit-server.py /opt/outline/grit-provisioner/server.py && sudo mv ~/grit-course-tool-map.json /opt/outline/grit-provisioner/course-tool-map.json && sudo chmod 644 /opt/outline/grit-provisioner/*'
 
-          gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mkdir -p /opt/outline/moodle-docker'
-          gcloud compute scp deploy/moodle/Dockerfile "$INSTANCE_NAME:~/moodle-Dockerfile" --zone="$ZONE"
-          gcloud compute scp deploy/moodle/entrypoint.sh "$INSTANCE_NAME:~/moodle-entrypoint.sh" --zone="$ZONE"
-          gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mv ~/moodle-Dockerfile /opt/outline/moodle-docker/Dockerfile && sudo mv ~/moodle-entrypoint.sh /opt/outline/moodle-docker/entrypoint.sh && sudo chmod +x /opt/outline/moodle-docker/entrypoint.sh'
+          gcloud compute scp deploy/deploy.sh "$INSTANCE_NAME:~/deploy.sh" --zone="$ZONE"
+          gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mv ~/deploy.sh /opt/outline/deploy.sh && sudo chmod +x /opt/outline/deploy.sh'
+
+          gcloud compute scp deploy/smoke-test.sh "$INSTANCE_NAME:~/smoke-test.sh" --zone="$ZONE"
+          gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command='sudo mv ~/smoke-test.sh /opt/outline/smoke-test.sh && sudo chmod +x /opt/outline/smoke-test.sh'
 
       - name: Deploy
         run: |
@@ -108,3 +149,13 @@ jobs:
       - name: Cleanup
         if: always()
         run: rm -f /tmp/google-sa-key.json
+
+  smoke-test:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run smoke tests
+        run: bash deploy/smoke-test.sh "${{ secrets.DOMAIN }}"
