@@ -71,6 +71,7 @@ MOODLE_DB_PASSWORD=$(get_metadata "moodle-db-password")
 MOODLE_ADMIN_PASSWORD=$(get_metadata "moodle-admin-password")
 MOODLE_ADMIN_EMAIL=$(get_metadata "moodle-admin-email")
 MOODLE_WEBHOOK_SECRET=$(get_metadata "moodle-webhook-secret")
+MOODLE_IMAGE_TAG=$(get_metadata "moodle-image-tag")
 GRIT_API_URL=$(get_metadata "grit-api-url")
 GRIT_API_KEY=$(get_metadata "grit-api-key")
 
@@ -184,6 +185,11 @@ services:
       - OAUTH2_PROXY_UPSTREAM=static://202
       - OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
       - OAUTH2_PROXY_REVERSE_PROXY=true
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:4180/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   n8n:
     image: n8nio/n8n:stable
@@ -220,7 +226,7 @@ services:
       start_period: 30s
 
   moodle:
-    build: ./moodle-docker
+    image: ghcr.io/makenashville/moodle:\${MOODLE_IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       - MOODLE_DB_HOST=postgres
@@ -929,6 +935,7 @@ MOODLE_DB_PASSWORD=${MOODLE_DB_PASSWORD}
 MOODLE_ADMIN_PASSWORD=${MOODLE_ADMIN_PASSWORD}
 MOODLE_ADMIN_EMAIL=${MOODLE_ADMIN_EMAIL}
 MOODLE_WEBHOOK_SECRET=${MOODLE_WEBHOOK_SECRET}
+MOODLE_IMAGE_TAG=${MOODLE_IMAGE_TAG}
 
 # GRIT
 GRIT_API_URL=${GRIT_API_URL}

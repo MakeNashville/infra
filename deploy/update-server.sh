@@ -322,7 +322,11 @@ services:
       - OAUTH2_PROXY_UPSTREAM=static://202
       - OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
       - OAUTH2_PROXY_REVERSE_PROXY=true
-
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:4180/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   n8n:
     image: n8nio/n8n:stable
