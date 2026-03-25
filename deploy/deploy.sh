@@ -84,6 +84,63 @@ save_deploy_state() {
     echo "Deploy state saved to $DEPLOY_STATE_FILE"
 }
 
+# Generate a blue compose file for a single service
+# Reads the primary docker-compose.yml, extracts the service config,
+# strips depends_on, adds network alias, attaches to primary network
+generate_blue_compose() {
+    local service="$1"
+    local blue_file="/opt/outline/docker-compose.blue.yml"
+    local primary_network="outline_default"
+
+    sudo docker compose config --format json | python3 -c "
+import sys, json
+
+config = json.load(sys.stdin)
+service_name = '$service'
+primary_network = '$primary_network'
+
+svc = config['services'][service_name]
+
+# Strip depends_on — dependencies are in the primary project
+svc.pop('depends_on', None)
+
+# Add network alias so Caddy can reach it as <service>-blue
+svc['networks'] = {
+    'default': {
+        'aliases': ['${service_name}-blue']
+    }
+}
+
+blue_config = {
+    'services': {service_name: svc},
+    'networks': {
+        'default': {
+            'external': True,
+            'name': primary_network
+        }
+    }
+}
+
+# Preserve volumes if referenced
+volumes = {}
+for vol_mount in svc.get('volumes', []):
+    if isinstance(vol_mount, dict):
+        vol_name = vol_mount.get('source', '')
+    else:
+        vol_name = vol_mount.split(':')[0]
+    # Named volumes (not paths) need to be declared
+    if vol_name and not vol_name.startswith('/') and not vol_name.startswith('.'):
+        volumes[vol_name] = {'external': True}
+
+if volumes:
+    blue_config['volumes'] = volumes
+
+print(json.dumps(blue_config, indent=2))
+" | sudo tee "$blue_file" > /dev/null
+
+    echo "$blue_file"
+}
+
 # Main entrypoint — change detection only for now, more added in later tasks
 main() {
     echo "=== Zero-Downtime Deploy ==="
