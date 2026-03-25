@@ -501,10 +501,9 @@ sudo chmod +x /opt/outline/backup.sh
 # Ensure backup cron job is set up (idempotent)
 (sudo crontab -l 2>/dev/null | grep -v "backup.sh" || true; echo "0 3 * * * /opt/outline/backup.sh >> /var/log/outline-backup.log 2>&1") | sudo crontab -
 
-# Restart services to pick up new config
-echo "Restarting services..."
-sudo docker compose down --remove-orphans
-sudo docker compose up -d --build
+# Deploy services (blue-green for changed services, simple restart for excluded)
+echo "Deploying services..."
+sudo bash /opt/outline/deploy.sh
 
 # Generate Shlink API key if none exist
 echo "Checking Shlink API keys..."
