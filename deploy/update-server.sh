@@ -35,6 +35,7 @@ MOODLE_ADMIN_EMAIL=$(get_metadata "moodle-admin-email")
 MOODLE_WEBHOOK_SECRET=$(get_metadata "moodle-webhook-secret")
 GRIT_API_URL=$(get_metadata "grit-api-url")
 GRIT_API_KEY=$(get_metadata "grit-api-key")
+MOODLE_IMAGE_TAG=$(get_metadata "moodle-image-tag")
 
 # Create databases if postgres is running (skip if it's down — they'll be created after restart)
 if sudo docker compose exec -T postgres pg_isready -U outline > /dev/null 2>&1; then
@@ -212,6 +213,7 @@ MOODLE_WEBHOOK_SECRET=${MOODLE_WEBHOOK_SECRET}
 # GRIT
 GRIT_API_URL=${GRIT_API_URL}
 GRIT_API_KEY=${GRIT_API_KEY}
+MOODLE_IMAGE_TAG=${MOODLE_IMAGE_TAG}
 ENV
 
 sudo chmod 600 .env
@@ -242,7 +244,7 @@ services:
       shlink-web:
         condition: service_healthy
       oauth2-proxy:
-        condition: service_started
+        condition: service_healthy
       n8n:
         condition: service_healthy
       moodle:
@@ -320,7 +322,11 @@ services:
       - OAUTH2_PROXY_UPSTREAM=static://202
       - OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
       - OAUTH2_PROXY_REVERSE_PROXY=true
-
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:4180/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   n8n:
     image: n8nio/n8n:stable
@@ -357,7 +363,7 @@ services:
       start_period: 30s
 
   moodle:
-    build: ./moodle-docker
+    image: ghcr.io/makenashville/moodle:\${MOODLE_IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       - MOODLE_DB_HOST=postgres
@@ -501,10 +507,9 @@ sudo chmod +x /opt/outline/backup.sh
 # Ensure backup cron job is set up (idempotent)
 (sudo crontab -l 2>/dev/null | grep -v "backup.sh" || true; echo "0 3 * * * /opt/outline/backup.sh >> /var/log/outline-backup.log 2>&1") | sudo crontab -
 
-# Restart services to pick up new config
-echo "Restarting services..."
-sudo docker compose down --remove-orphans
-sudo docker compose up -d --build
+# Deploy services (blue-green for changed services, simple restart for excluded)
+echo "Deploying services..."
+sudo bash /opt/outline/deploy.sh
 
 # Generate Shlink API key if none exist
 echo "Checking Shlink API keys..."
