@@ -244,7 +244,7 @@ services:
       shlink-web:
         condition: service_healthy
       oauth2-proxy:
-        condition: service_started
+        condition: service_healthy
       n8n:
         condition: service_healthy
       moodle:
