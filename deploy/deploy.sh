@@ -261,9 +261,74 @@ reload_caddy() {
     fi
 }
 
-# Main entrypoint — change detection only for now, more added in later tasks
+# Deploy a single service via blue-green swap
+deploy_blue_green_service() {
+    local service="$1"
+    echo ""
+    echo "--- Blue-green deploy: ${service} ---"
+
+    # Step 1: Generate blue compose file
+    local blue_file
+    blue_file=$(generate_blue_compose "$service")
+
+    # Step 2: Start the new container in the blue project
+    echo "Starting ${service} in blue project..."
+    sudo docker compose -p blue -f "$blue_file" up -d "$service"
+
+    # Step 3: Wait for health check
+    local timeout
+    timeout=$(get_health_timeout "$service")
+    if ! wait_for_healthy "blue" "$service" "$timeout"; then
+        echo "FAILED: ${service} — tearing down blue container, keeping old running"
+        sudo docker compose -p blue -f "$blue_file" down 2>/dev/null || true
+        sudo rm -f "$blue_file"
+        return 1
+    fi
+
+    # Step 4: Swap Caddy to blue
+    swap_caddy_to_blue "$service"
+
+    # Step 5: Stop old container in primary project
+    echo "Stopping old ${service} in primary project..."
+    sudo docker compose stop "$service"
+    sudo docker compose rm -f "$service"
+
+    # Step 6: Start service in primary project (blue still serves traffic)
+    echo "Starting ${service} in primary project..."
+    sudo docker compose up -d --no-deps "$service"
+
+    # Step 7: Wait for primary to be healthy
+    if ! wait_for_healthy "outline" "$service" "$timeout"; then
+        echo "WARNING: ${service} primary container not healthy — blue still serving traffic"
+        echo "Manual intervention may be needed"
+        sudo rm -f "$blue_file"
+        return 1
+    fi
+
+    # Step 8: Swap Caddy back to primary
+    swap_caddy_to_primary "$service"
+
+    # Step 9: Tear down blue container (no longer receiving traffic)
+    echo "Tearing down blue ${service}..."
+    sudo docker compose -p blue -f "$blue_file" down 2>/dev/null || true
+
+    sudo rm -f "$blue_file"
+    echo "--- ${service} deployed successfully ---"
+    return 0
+}
+
+# Simple restart for excluded services
+deploy_excluded_service() {
+    local service="$1"
+    echo ""
+    echo "--- Restarting excluded service: ${service} ---"
+    sudo docker compose up -d --no-deps "$service"
+    echo "--- ${service} restarted ---"
+}
+
 main() {
     echo "=== Zero-Downtime Deploy ==="
+    local failed_services=()
 
     local detect_result=0
     detect_changes || detect_result=$?
@@ -279,9 +344,36 @@ main() {
         exit 0
     fi
 
-    # Placeholder: deploy logic added in subsequent tasks
-    echo "Deploy logic not yet implemented"
-    exit 1
+    # Step 1: Deploy excluded services first (Postgres → Redis → Caddy)
+    for svc in postgres redis caddy; do
+        for changed in "${CHANGED_EXCLUDED[@]+"${CHANGED_EXCLUDED[@]}"}"; do
+            if [[ "$changed" == "$svc" ]]; then
+                deploy_excluded_service "$svc"
+                break
+            fi
+        done
+    done
+
+    # Step 2: Blue-green deploy changed services sequentially
+    for svc in "${CHANGED_BLUE_GREEN[@]+"${CHANGED_BLUE_GREEN[@]}"}"; do
+        if ! deploy_blue_green_service "$svc"; then
+            failed_services+=("$svc")
+        fi
+    done
+
+    # Step 3: Save state (even if some services failed — successful ones should be recorded)
+    save_deploy_state
+
+    # Report results
+    echo ""
+    echo "=== Deploy Complete ==="
+    if [[ ${#failed_services[@]} -gt 0 ]]; then
+        echo "FAILED services: ${failed_services[*]}"
+        exit 1
+    else
+        echo "All services deployed successfully"
+        exit 0
+    fi
 }
 
 main "$@"
