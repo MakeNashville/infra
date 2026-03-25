@@ -209,6 +209,58 @@ for line in sys.stdin:
     return 1
 }
 
+# Map services to their internal ports (as referenced in Caddyfile)
+declare -A SERVICE_PORTS=(
+    [outline]=3000
+    [shlink]=8080
+    [shlink-web]=8080
+    [oauth2-proxy]=4180
+    [n8n]=5678
+    [moodle]=80
+)
+
+# Swap Caddyfile upstreams from <service>:<port> to <service>-blue:<port>
+swap_caddy_to_blue() {
+    local service="$1"
+    local port="${SERVICE_PORTS[$service]:-}"
+
+    if [[ -z "$port" ]]; then
+        echo "No Caddy upstream for ${service} — skipping Caddy swap"
+        return 0
+    fi
+
+    echo "Swapping Caddy upstream: ${service}:${port} → ${service}-blue:${port}"
+    sudo sed -i "s/${service}:${port}/${service}-blue:${port}/g" /opt/outline/Caddyfile
+    reload_caddy
+}
+
+# Swap Caddyfile upstreams back from <service>-blue:<port> to <service>:<port>
+swap_caddy_to_primary() {
+    local service="$1"
+    local port="${SERVICE_PORTS[$service]:-}"
+
+    if [[ -z "$port" ]]; then
+        return 0
+    fi
+
+    echo "Swapping Caddy upstream: ${service}-blue:${port} → ${service}:${port}"
+    sudo sed -i "s/${service}-blue:${port}/${service}:${port}/g" /opt/outline/Caddyfile
+    reload_caddy
+}
+
+# Reload Caddy config gracefully (no dropped connections)
+reload_caddy() {
+    local caddy_container
+    caddy_container=$(sudo docker compose ps -q caddy)
+    if [[ -n "$caddy_container" ]]; then
+        sudo docker exec "$caddy_container" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+        echo "Caddy reloaded"
+    else
+        echo "WARNING: Caddy container not found — cannot reload"
+        return 1
+    fi
+}
+
 # Main entrypoint — change detection only for now, more added in later tasks
 main() {
     echo "=== Zero-Downtime Deploy ==="
