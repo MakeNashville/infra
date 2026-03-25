@@ -30,7 +30,9 @@ jobs:
         run: python deploy/grit-provisioner/server_test.py -v
 
       - name: Validate docker-compose config
-        run: docker compose config --quiet
+        run: |
+          touch .env
+          docker compose config --quiet
 
   build:
     runs-on: ubuntu-latest
