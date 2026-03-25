@@ -141,6 +141,74 @@ print(json.dumps(blue_config, indent=2))
     echo "$blue_file"
 }
 
+# Compute health check timeout from service config:
+# timeout = start_period + (retries × interval)
+# Falls back to 120s if health check config is missing
+get_health_timeout() {
+    local service="$1"
+    sudo docker compose config --format json | python3 -c "
+import sys, json, re
+
+def parse_duration(val):
+    if isinstance(val, (int, float)):
+        # Already in a numeric form (nanoseconds from compose config)
+        return val / 1e9
+    val = str(val)
+    m = re.match(r'(?:(\d+)m)?(?:(\d+)s)?', val)
+    if m:
+        mins = int(m.group(1) or 0)
+        secs = int(m.group(2) or 0)
+        return mins * 60 + secs
+    return 120
+
+config = json.load(sys.stdin)
+svc = config.get('services', {}).get('$service', {})
+hc = svc.get('healthcheck', {})
+
+start_period = parse_duration(hc.get('start_period', 0))
+interval = parse_duration(hc.get('interval', '5s'))
+retries = int(hc.get('retries', 5))
+
+timeout = start_period + (retries * interval)
+print(int(max(timeout, 60)))  # minimum 60s
+"
+}
+
+# Wait for a container to become healthy
+# Args: project_name service_name timeout_seconds
+wait_for_healthy() {
+    local project="$1"
+    local service="$2"
+    local timeout="$3"
+    local elapsed=0
+    local interval=5
+
+    echo "Waiting up to ${timeout}s for ${service} to become healthy..."
+
+    while [[ $elapsed -lt $timeout ]]; do
+        local health
+        health=$(sudo docker compose -p "$project" ps --format json "$service" 2>/dev/null \
+            | python3 -c "
+import sys, json
+for line in sys.stdin:
+    data = json.loads(line)
+    print(data.get('Health', data.get('Status', 'unknown')))
+    break
+" 2>/dev/null || echo "unknown")
+
+        if [[ "$health" == *"healthy"* ]]; then
+            echo "${service} is healthy after ${elapsed}s"
+            return 0
+        fi
+
+        sleep "$interval"
+        elapsed=$((elapsed + interval))
+    done
+
+    echo "ERROR: ${service} failed to become healthy within ${timeout}s"
+    return 1
+}
+
 # Main entrypoint — change detection only for now, more added in later tasks
 main() {
     echo "=== Zero-Downtime Deploy ==="
