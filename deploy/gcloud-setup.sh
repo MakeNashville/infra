@@ -91,7 +91,8 @@ moodle-admin-password="$MOODLE_ADMIN_PASSWORD",\
 moodle-admin-email="${MOODLE_ADMIN_EMAIL:-}",\
 moodle-webhook-secret="$MOODLE_WEBHOOK_SECRET",\
 grit-api-url="${GRIT_API_URL:-}",\
-grit-api-key="${GRIT_API_KEY:-}"
+grit-api-key="${GRIT_API_KEY:-}",\
+shlink-api-key="${SHLINK_API_KEY:-}"
 
     # Update GCS bucket CORS for direct browser uploads
     echo "Updating GCS bucket CORS..."
@@ -256,7 +257,8 @@ moodle-admin-password="$MOODLE_ADMIN_PASSWORD",\
 moodle-admin-email="${MOODLE_ADMIN_EMAIL:-}",\
 moodle-webhook-secret="$MOODLE_WEBHOOK_SECRET",\
 grit-api-url="${GRIT_API_URL:-}",\
-grit-api-key="${GRIT_API_KEY:-}"
+grit-api-key="${GRIT_API_KEY:-}",\
+shlink-api-key="${SHLINK_API_KEY:-}"
 
 echo ""
 echo "============================================"
