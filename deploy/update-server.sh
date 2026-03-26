@@ -491,7 +491,7 @@ gcloud storage ls -l "\${BUCKET}/" 2>/dev/null | while read -r line; do
   created=\$(echo "\$line" | awk "{print \\\$2}")
   file_epoch=\$(date -d "\$created" +%s 2>/dev/null || echo 0)
   if [[ "\$file_epoch" -gt 0 && "\$file_epoch" -lt "\$cutoff" ]]; then
-    gcloud storage rm "\$file"
+    gcloud storage rm "\$file" 2>/dev/null || true
   fi
 done
 
