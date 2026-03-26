@@ -107,7 +107,7 @@ svc.pop('depends_on', None)
 # Add network alias so Caddy can reach it as <service>-blue
 svc['networks'] = {
     'default': {
-        'aliases': ['${service_name}-blue']
+        'aliases': [service_name + '-blue']
     }
 }
 
