@@ -4,9 +4,9 @@ set -euo pipefail
 cd /opt/outline
 
 # Services eligible for blue-green deploy
-BLUE_GREEN_SERVICES=(outline shlink shlink-web oauth2-proxy n8n moodle grit-provisioner)
-# Services that get a simple restart if changed
-EXCLUDED_SERVICES=(postgres redis caddy)
+BLUE_GREEN_SERVICES=(outline shlink shlink-web n8n moodle grit-provisioner)
+# Services that get a simple restart if changed (no healthcheck or stateful)
+EXCLUDED_SERVICES=(postgres redis caddy oauth2-proxy)
 
 DEPLOY_STATE_FILE="/opt/outline/.deploy-state"
 
