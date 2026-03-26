@@ -36,6 +36,7 @@ MOODLE_WEBHOOK_SECRET=$(get_metadata "moodle-webhook-secret")
 GRIT_API_URL=$(get_metadata "grit-api-url")
 GRIT_API_KEY=$(get_metadata "grit-api-key")
 MOODLE_IMAGE_TAG=$(get_metadata "moodle-image-tag")
+SHLINK_API_KEY=$(get_metadata "shlink-api-key")
 
 # Create databases if postgres is running (skip if it's down — they'll be created after restart)
 if sudo docker compose exec -T postgres pg_isready -U outline > /dev/null 2>&1; then
@@ -214,6 +215,9 @@ MOODLE_WEBHOOK_SECRET=${MOODLE_WEBHOOK_SECRET}
 GRIT_API_URL=${GRIT_API_URL}
 GRIT_API_KEY=${GRIT_API_KEY}
 MOODLE_IMAGE_TAG=${MOODLE_IMAGE_TAG}
+
+# Shlink web client
+SHLINK_API_KEY=${SHLINK_API_KEY}
 ENV
 
 sudo chmod 600 .env
@@ -301,6 +305,8 @@ services:
   shlink-web:
     image: shlinkio/shlink-web-client:4
     restart: unless-stopped
+    volumes:
+      - ./shlink-servers.json:/usr/share/nginx/html/servers.json:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8080 > /dev/null || exit 1"]
       interval: 5s
@@ -502,23 +508,17 @@ sudo chmod +x /opt/outline/backup.sh
 # Ensure backup cron job is set up (idempotent)
 (sudo crontab -l 2>/dev/null | grep -v "backup.sh" || true; echo "0 3 * * * /opt/outline/backup.sh >> /var/log/outline-backup.log 2>&1") | sudo crontab -
 
+# Generate Shlink servers.json for web client
+if [[ -n "$SHLINK_API_KEY" ]]; then
+    echo "Writing Shlink servers.json..."
+    sudo tee /opt/outline/shlink-servers.json > /dev/null <<SERVERS
+[{"name":"Make Nashville","url":"https://go.makenashville.org","apiKey":"${SHLINK_API_KEY}"}]
+SERVERS
+    sudo chmod 644 /opt/outline/shlink-servers.json
+fi
+
 # Deploy services (blue-green for changed services, simple restart for excluded)
 echo "Deploying services..."
 sudo bash /opt/outline/deploy.sh
-
-# Generate Shlink API key if none exist
-echo "Checking Shlink API keys..."
-sleep 10
-EXISTING_KEYS=$(sudo docker compose exec -T shlink shlink api-key:list 2>/dev/null | grep -c "+" || echo "0")
-if [[ "$EXISTING_KEYS" -lt 2 ]]; then
-    echo ""
-    echo "============================================"
-    echo "Generating Shlink API key..."
-    echo "============================================"
-    sudo docker compose exec -T shlink shlink api-key:generate
-    echo ""
-    echo "Use this API key to connect the Shlink web client at https://links.makenashville.org"
-    echo "Server URL: https://go.makenashville.org"
-fi
 
 echo "Update complete!"

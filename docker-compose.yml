@@ -76,6 +76,8 @@ services:
   shlink-web:
     image: shlinkio/shlink-web-client:4
     restart: unless-stopped
+    volumes:
+      - ./deploy/shlink-servers.json:/usr/share/nginx/html/servers.json:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8080 > /dev/null || exit 1"]
       interval: 5s
