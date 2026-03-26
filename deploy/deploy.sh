@@ -121,16 +121,20 @@ blue_config = {
     }
 }
 
-# Preserve volumes if referenced
+# Preserve volumes if referenced — use resolved names from top-level config
+all_volumes = config.get('volumes', {})
 volumes = {}
 for vol_mount in svc.get('volumes', []):
     if isinstance(vol_mount, dict):
         vol_name = vol_mount.get('source', '')
     else:
         vol_name = vol_mount.split(':')[0]
-    # Named volumes (not paths) need to be declared
+    # Named volumes (not paths) need to be declared as external
     if vol_name and not vol_name.startswith('/') and not vol_name.startswith('.'):
-        volumes[vol_name] = {'external': True}
+        # Use the actual Docker volume name from resolved config
+        vol_config = all_volumes.get(vol_name, {})
+        actual_name = vol_config.get('name', vol_name)
+        volumes[vol_name] = {'external': True, 'name': actual_name}
 
 if volumes:
     blue_config['volumes'] = volumes
