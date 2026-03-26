@@ -12,6 +12,9 @@
 *deploy-key*.json
 google-sa-key.json
 
+# Python
+__pycache__/
+
 # Temp files
 *.gstmp
 
