@@ -15,5 +15,8 @@ google-sa-key.json
 # Temp files
 *.gstmp
 
+# Superpowers docs
+docs/superpowers/
+
 # Worktrees
 .worktrees/
