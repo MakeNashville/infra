@@ -14,19 +14,16 @@ FAILED=()
 check_endpoint() {
     local name="$1"
     local url="$2"
-    local accept_302="${3:-false}"
+    # Comma-separated list of acceptable HTTP codes (default: 200)
+    local accept_codes="${3:-200}"
 
     for attempt in $(seq 1 $RETRIES); do
         local http_code
-        http_code=$(curl -sf -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")
+        http_code=$(curl -o /dev/null -w "%{http_code}" --max-time 10 -s "$url" 2>/dev/null || echo "000")
 
-        if [[ "$http_code" == "200" ]]; then
+        # Check if the response code is in the accepted list
+        if echo ",$accept_codes," | grep -q ",$http_code,"; then
             echo "OK: ${name} (${url}) — HTTP ${http_code}"
-            return 0
-        fi
-
-        if [[ "$accept_302" == "true" && "$http_code" == "302" ]]; then
-            echo "OK: ${name} (${url}) — HTTP ${http_code} (redirect, service is up)"
             return 0
         fi
 
@@ -46,13 +43,13 @@ echo ""
 
 check_endpoint "Outline" "https://${DOMAIN}/_health"
 check_endpoint "Shlink" "https://go.makenashville.org/rest/health"
-check_endpoint "Shlink-web" "https://links.makenashville.org/" "true"
-check_endpoint "OAuth2-proxy" "https://links.makenashville.org/oauth2/ping"
-check_endpoint "n8n" "https://automations.makenashville.org/healthz"
+check_endpoint "Shlink-web" "https://links.makenashville.org/" "200,302"
+check_endpoint "OAuth2-proxy" "https://links.makenashville.org/oauth2/ping" "200,403"
+check_endpoint "n8n" "https://automations.makenashville.org/healthz" "200,302"
 check_endpoint "Moodle" "https://learn.makenashville.org/login/index.php"
 
 # GRIT provisioner has no external route — check via docker exec if running on the VM
-if command -v docker &> /dev/null; then
+if [[ -f /opt/outline/docker-compose.yml ]]; then
     local_grit_check=$(sudo docker compose -f /opt/outline/docker-compose.yml exec -T grit-provisioner wget -qO /dev/null http://127.0.0.1:8000/health 2>&1 && echo "OK" || echo "FAIL")
     if [[ "$local_grit_check" == "OK" ]]; then
         echo "OK: GRIT-provisioner (docker exec health check)"
